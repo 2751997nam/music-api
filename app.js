@@ -1,5 +1,4 @@
 import express from 'express';
-import Config from './config/index.js';
 import cors from 'cors';
 import routes from './routes.js';
 import dotenv from 'dotenv';
@@ -9,6 +8,6 @@ const app = express();
 
 app.use(routes);
 
-app.listen(Config.port, function(){
-    console.log("Manga Api running on port " + Config.port);
+app.listen(process.env.APP_PORT, function(){
+    console.log(process.env.APP_NAME + " running on port " + process.env.APP_PORT);
 })

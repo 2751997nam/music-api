@@ -1,6 +1,6 @@
 import express from 'express';
 import ApiController from './controllers/ApiController.js';
-import MangaController from './controllers/MangaController.js';
+import Log from './libs/log.js';
 
 const app = express();
 const router = express.Router();
@@ -10,8 +10,13 @@ const handleRequest = async (req, res, callback) => {
         let response = await callback(req, res);
         if (!res.headersSent) {
             try {
-                res.json(response);
+                res.setHeader('Content-Type', 'application/json');
+                res.send(JSON.stringify(response, (key, value) => {
+                    return !isNaN(value) ? `${value}` : value;
+                }));
             } catch (error) {
+                Log.info('ERROR: ' + error.message);
+                Log.info('Request ERROR: ', req.url);
                 res.json({
                     status: 'fail',
                     message: error.toString(),
@@ -19,21 +24,21 @@ const handleRequest = async (req, res, callback) => {
             }
         }
     } catch (error) {
-        console.log(error);
-        res.json({
-            status: 'fail',
-            message: error.toString(),
-        });
+        Log.info('ERROR: ' + error.message);
+        Log.info('Request ERROR: ', req.url);
+        if (!res.headersSent) {
+            res.json({
+                status: 'fail',
+                message: error.toString(),
+            });
+        }
     }
 }
 
 router.get('/', function (req, res) {
-    res.send('Manga Api');
+    res.send(process.env.APP_NAME);
 });
 router.get('/favicon.ico', (req, res) => res.status(204));
-router.get('/last-update-manga', (req, res) => handleRequest(req, res, MangaController.getLastUpdateMangas));
-router.get('/get-popular-manga', (req, res) => handleRequest(req, res, MangaController.getPopularMangas));
-router.get('/get-top-views', (req, res) => handleRequest(req, res, MangaController.getTopViews));
 router.get('/:table', (req, res) => handleRequest(req, res, ApiController.find));
 router.get('/:table/:id', (req, res) => handleRequest(req, res, ApiController.show));
 

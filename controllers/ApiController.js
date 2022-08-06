@@ -30,7 +30,7 @@ const find = async (request, response) => {
 
     retVal.result = JSON.parse(JSON.stringify(items));
 
-    return response.json(retVal);
+    return retVal;
 }
 
 const buildResult = async (params) => {
@@ -57,8 +57,12 @@ const buildResult = async (params) => {
 
     let items = await query.select(fields);
 
-    if (params.embeds) {
-        items = await buildEmbeds(params, items);
+    if (params.mtm) {
+        items = await buildManyToMany(params, items);
+    }
+
+    if (params.otm) {
+        items = await buildOneToMany(params, items);
     }
 
     return items;
@@ -159,24 +163,46 @@ const buildSorts = async (query, param) => {
     }
 }
 
-const buildEmbeds = async (params, items) => {
-    let embeds = params.embeds.split(',');
+const buildManyToMany = async (params, items) => {
+    let tables = params.mtm.split(',');
     let itemIds = items.map(item => item.id);
     let itemById = {};
     for (let item of items) {
-        for (let embed of embeds) {
-            item[embed] = [];
+        for (let sTable of tables) {
+            item[sTable] = [];
         }
         itemById[item.id] = item;
     }
-    for (let embed of embeds) {
-        let subTable = params.table + '_n_' + embed;
-        let embedItems = await DB.from(embed)
-            .join(subTable, `${embed}.id`, `${subTable}.${embed}_id`)
-            .whereIn(`${subTable}.${params.table}_id`, itemIds)
-            .select([`${embed}.*`, `${subTable}.${params.table}_id`]);
-        for (let item of embedItems) {
-            itemById[item[`${params.table}_id`]][embed].push(item);
+    for (let sTable of tables) {
+        let pivotTable = params.table + '_n_' + sTable;
+        let tableItems = await DB.from(sTable)
+            .join(pivotTable, `${sTable}.id`, `${pivotTable}.${sTable}_id`)
+            .whereIn(`${pivotTable}.${params.table}_id`, itemIds)
+            .select([`${sTable}.*`, `${pivotTable}.${params.table}_id`]);
+        for (let item of tableItems) {
+            itemById[item[`${params.table}_id`]][sTable].push(item);
+        }
+    }
+
+    return Object.values(itemById);
+}
+
+const buildOneToMany = async (params, items) => {
+    let tables = params.otm.split(',');
+    let itemIds = items.map(item => item.id);
+    let itemById = {};
+    for (let item of items) {
+        for (let table of tables) {
+            item[table] = [];
+        }
+        itemById[item.id] = item;
+    }
+    for (let table of tables) {
+        let tableItems = await DB.from(table)
+            .whereIn(`${table}.${params.table}_id`, itemIds)
+            .select([`${table}.*`]);
+        for (let item of tableItems) {
+            itemById[item[`${params.table}_id`]][table].push(item);
         }
     }
 
@@ -202,7 +228,7 @@ const show = async (request, response) => {
         retVal.result = JSON.parse(JSON.stringify(result));
         retVal.status = 'successful';
     }
-    response.json(retVal);
+    return retVal;
 }
 
 export default {
