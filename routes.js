@@ -11,9 +11,7 @@ const handleRequest = async (req, res, callback) => {
         if (!res.headersSent) {
             try {
                 res.setHeader('Content-Type', 'application/json');
-                res.send(JSON.stringify(response, (key, value) => {
-                    return !isNaN(value) ? `${value}` : value;
-                }));
+                res.send(JSON.stringify(response));
             } catch (error) {
                 Log.info('ERROR: ' + error.message);
                 Log.info('Request ERROR: ', req.url);
